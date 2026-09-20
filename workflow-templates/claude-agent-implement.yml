@@ -1,0 +1,42 @@
+name: Claude Agent - Implement Issue
+
+# 設計済みのIssueに `ready-for-claude` ラベルが付与されたら、
+# Claude Codeが実装してPull Requestを作成する。
+# Claudeへの指示（進め方・禁止事項・PR本文フォーマット）は共通Action側にあるため、
+# このファイルには実行環境の準備だけを書く。
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement:
+    if: github.event.label.name == 'ready-for-claude'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+      id-token: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      # TODO: Claudeが lint / test / typecheck を実行できるよう、
+      # このリポジトリに必要な依存関係の準備をここに書く。例:
+      #
+      # - uses: actions/setup-node@v7
+      #   with:
+      #     node-version: "24"
+      # - run: npm ci
+
+      - uses: shu0411/.github/actions/implement-issue@main
+        with:
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # 上で準備したツールをClaudeに許可する（例: npm / uv）
+          # additional-allowed-tools: "Bash(npm:*),Bash(npx:*)"
+          # このリポジトリ固有の追加指示があれば書く
+          # extra-prompt: ""

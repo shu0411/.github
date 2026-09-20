@@ -1,0 +1,5 @@
+{
+  "name": "Claude Agent - Implement Issue",
+  "description": "ready-for-claude ラベルが付いたIssueをClaude Codeが実装し、Pull Requestを作成する。",
+  "iconName": "octicon issue-opened"
+}
