@@ -1,0 +1,24 @@
+name: Lint
+
+# このリポジトリで配布するworkflow / Actionの構文を検証する。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # setup-uv は v8 以降 major タグが発行されないため、バージョンまで指定する
+      - uses: astral-sh/setup-uv@v10.1.0
+
+      - name: Lint workflows
+        run: uvx --from actionlint-py actionlint .github/workflows/*.yml workflow-templates/*.yml
+
+      - name: Validate composite actions
+        run: uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
