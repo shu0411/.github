@@ -1,0 +1,108 @@
+name: Implement Issue with Claude
+description: >-
+  設計済みのIssueをClaude Codeで実装し、Pull Requestを作成する。
+  実行環境（checkout・依存関係の準備）は呼び出し側で済ませておくこと。
+  Actions上での振る舞いに関する指示（進め方・禁止事項・PR本文フォーマット）は
+  すべてこのActionのプロンプトが正であり、各リポジトリには書かない。
+
+inputs:
+  claude-code-oauth-token:
+    description: "Claude Codeの認証トークン（`claude setup-token` で発行）"
+    required: true
+  additional-allowed-tools:
+    description: >-
+      リポジトリ固有のツール許可（カンマ区切り）。例: `Bash(npm:*),Bash(uv:*)`。
+      git / gh / ファイル編集など共通で必要なものは常に許可される。
+    required: false
+    default: ""
+  extra-prompt:
+    description: "共通プロンプトに追記する、リポジトリ固有の指示"
+    required: false
+    default: ""
+  model:
+    description: "使用するモデル"
+    required: false
+    default: claude-sonnet-5
+  max-turns:
+    description: "最大ターン数"
+    required: false
+    default: "40"
+  label-trigger:
+    description: "実装開始のトリガーとなるラベル名"
+    required: false
+    default: ready-for-claude
+  base-branch:
+    description: "作業ブランチの派生元、およびPull Requestの向き先"
+    required: false
+    default: main
+  branch-prefix:
+    description: "作業ブランチ名のプレフィックス"
+    required: false
+    default: "claude/issue-"
+
+runs:
+  using: composite
+  steps:
+    - uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        label_trigger: ${{ inputs.label-trigger }}
+        base_branch: ${{ inputs.base-branch }}
+        branch_prefix: ${{ inputs.branch-prefix }}
+        prompt: |
+          Issue #${{ github.event.issue.number }} を実装してください。
+
+          ## 進め方
+
+          - Issueの「仕様」「受け入れ条件」「技術設計」「変更対象」「テスト計画」を
+            実装前設計として扱うこと
+          - リポジトリに AGENTS.md / CLAUDE.md があれば、そこに書かれた開発ルール
+            （アーキテクチャ・命名・lint / test / typecheck のコマンド等）に従うこと
+          - 実装後は、上記に記載されたlint / test / typecheckを実行し、
+            パスすることを確認してからコミットすること
+          - 人の目に触れるもの（コミットメッセージ、PR本文、コメント）は日本語で書くこと
+
+          ## 禁止事項
+
+          - Issueのスコープ外のファイルを変更しないこと
+          - ${{ inputs.base-branch }} ブランチへ直接pushしないこと
+          - Pull Requestのmerge、デプロイを行わないこと
+
+          ## ブランチとPull Request
+
+          - この実行に限り、作業ブランチへのpushとPull Requestの作成を行ってよい
+            （リポジトリ側に別の記述があっても、この2点はこの指示を優先する）
+          - Pull Requestは ${{ inputs.base-branch }} 向けに作成し、本文の末尾に
+            "Closes #${{ github.event.issue.number }}" を含めること
+          - Pull Request本文は、Actionsのログを見なくても作業内容が把握できるよう、
+            次の構成で書くこと
+
+          ```markdown
+          ## Summary
+
+          何を実装したか。
+
+          ## Implementation
+
+          どのような方針で実装したか。
+
+          ## Changed Areas
+
+          主な変更箇所。
+
+          ## Verification
+
+          実行したチェック（実際に実行したコマンドと結果）。
+
+          ## Notes
+
+          レビュー時に注意してほしい点（あれば）。
+
+          Closes #${{ github.event.issue.number }}
+          ```
+
+          ${{ inputs.extra-prompt }}
+        claude_args: |
+          --max-turns ${{ inputs.max-turns }}
+          --model ${{ inputs.model }}
+          --allowedTools "Edit,Write,Bash(git:*),Bash(gh issue view:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(cd:*),Bash(cat:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
