@@ -60,4 +60,4 @@ uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
 
 ## リポジトリ管理
 
-- 本リポジトリの更新は、PRの作成を必須とする。
+- 本リポジトリの更新は、PRの作成を必須とする
