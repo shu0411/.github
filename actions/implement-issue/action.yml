@@ -2,8 +2,8 @@ name: Implement Issue with Claude
 description: >-
   設計済みのIssueをClaude Codeで実装し、Pull Requestを作成する。
   実行環境（checkout・依存関係の準備）は呼び出し側で済ませておくこと。
-  Actions上での振る舞いに関する指示（進め方・禁止事項・PR本文フォーマット）は
-  すべてこのActionのプロンプトが正であり、各リポジトリには書かない。
+  進め方・禁止事項・PR本文フォーマットはこのActionのプロンプトに実装されている。
+  shu0411/dotfiles を実行時にcheckoutし、グローバルなClaude Code設定（CLAUDE.md/AGENTS.md）を読み込ませる。
 
 inputs:
   claude-code-oauth-token:
@@ -43,6 +43,13 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Load global Claude Code config (shu0411/dotfiles)
+      shell: bash
+      run: |
+        git clone --depth 1 https://github.com/shu0411/dotfiles.git ~/dotfiles
+        mkdir -p ~/.claude
+        cp ~/dotfiles/.claude/CLAUDE.md ~/.claude/CLAUDE.md
+
     - uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
@@ -60,7 +67,6 @@ runs:
             （アーキテクチャ・命名・lint / test / typecheck のコマンド等）に従うこと
           - 実装後は、上記に記載されたlint / test / typecheckを実行し、
             パスすることを確認してからコミットすること
-          - 人の目に触れるもの（コミットメッセージ、PR本文、コメント）は日本語で書くこと
 
           ## 禁止事項
 

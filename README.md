@@ -27,6 +27,11 @@ PR 本文フォーマットなどを書く必要はない
 （アーキテクチャや lint / test コマンドなど、リポジトリ固有の開発ルールは
 従来どおり `AGENTS.md` / `CLAUDE.md` に書く）。
 
+Composite Action は実行時に [`shu0411/dotfiles`](https://github.com/shu0411/dotfiles)
+をcheckoutし、`~/.claude/CLAUDE.md` を配置してグローバルなClaude Code設定
+（`CLAUDE.md` 本体と、そこから `@` importされる `AGENTS.md`）を読み込ませる
+（dotfiles は public である必要がある）。
+
 ## 導入手順
 
 1. リポジトリの Secrets に `CLAUDE_CODE_OAUTH_TOKEN` を登録する
