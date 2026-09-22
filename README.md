@@ -57,3 +57,7 @@ uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
 ```
 
 呼び出し側は `@main` を参照しているため、`main` への変更は即座に全リポジトリへ反映される。
+
+## リポジトリ管理
+
+- 本リポジトリの更新は、PRの作成を必須とする。
