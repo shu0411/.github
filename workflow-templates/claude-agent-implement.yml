@@ -4,6 +4,7 @@ name: Claude Agent - Implement Issue
 # Claude Codeが実装してPull Requestを作成する。
 # Claudeへの指示（進め方・禁止事項・PR本文フォーマット）は共通Action側にあるため、
 # このファイルには実行環境の準備だけを書く。
+# 導入時に、リポジトリの Secrets に `CLAUDE_CODE_OAUTH_TOKEN` を登録する。
 
 on:
   issues:
