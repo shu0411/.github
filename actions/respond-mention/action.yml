@@ -27,7 +27,7 @@ inputs:
   max-turns:
     description: "最大ターン数"
     required: false
-    default: "50"
+    default: "100"
   trigger-phrase:
     description: >-
       応答するメンション。変更する場合は、呼び出し側 workflow の `if:` の判定文字列も合わせて変えること
