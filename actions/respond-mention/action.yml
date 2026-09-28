@@ -1,0 +1,74 @@
+name: Respond to Mention with Claude
+description: >-
+  Pull Requestのコメント・レビューでのメンション（既定は `@claude`）にClaude Codeが応答する。
+  コメント本文がそのままClaudeへの指示になり、結果はPull Requestへのコメントとして返る。
+  メンションの判定（job の `if:`）と実行環境（checkout・依存関係の準備）は呼び出し側で済ませておくこと。
+  shu0411/dotfiles を実行時にcheckoutし、グローバルなClaude Code設定（CLAUDE.md/AGENTS.md）を読み込ませる。
+  Actions上で守らせる共通ルールはこのActionで追記する。
+
+inputs:
+  claude-code-oauth-token:
+    description: "Claude Codeの認証トークン（`claude setup-token` で発行）"
+    required: true
+  additional-allowed-tools:
+    description: >-
+      リポジトリ固有のツール許可（カンマ区切り）。例: `Bash(npm:*),Bash(uv:*)`。
+      ファイル編集と、対象ブランチへの git add / commit / push は常に許可される。
+    required: false
+    default: ""
+  extra-prompt:
+    description: "共通ルールに追記する、リポジトリ固有の指示"
+    required: false
+    default: ""
+  model:
+    description: "使用するモデル"
+    required: false
+    default: claude-sonnet-5
+  max-turns:
+    description: "最大ターン数"
+    required: false
+    default: "50"
+  trigger-phrase:
+    description: >-
+      応答するメンション。変更する場合は、呼び出し側 workflow の `if:` の判定文字列も合わせて変えること
+    required: false
+    default: "@claude"
+
+runs:
+  using: composite
+  steps:
+    - name: Load global Claude Code config (shu0411/dotfiles)
+      shell: bash
+      env:
+        EXTRA_PROMPT: ${{ inputs.extra-prompt }}
+      run: |
+        git clone --depth 1 https://github.com/shu0411/dotfiles.git ~/dotfiles
+        mkdir -p ~/.claude
+        cp ~/dotfiles/.claude/CLAUDE.md ~/.claude/CLAUDE.md
+        cat >> ~/.claude/CLAUDE.md <<'EOF'
+
+        ## GitHub Actions でのメンション応答
+
+        Pull Request 上のメンションに応答するときは、上記に加えて以下に従う。
+
+        - リポジトリに AGENTS.md / CLAUDE.md があれば、そこに書かれた開発ルールに従うこと
+        - コードを変更した場合は、リポジトリで定義された lint / test / typecheck を実行し、
+          パスすることを確認してからコミットすること
+        - この実行に限り、対象の Pull Request のブランチへのコミットと push を行ってよい
+          （上記や各リポジトリに別の記述があっても、この点はこの指示を優先する）
+        - 依頼の範囲外のファイルを変更しないこと
+        - Pull Request の向き先ブランチへ直接 push しないこと
+        - Pull Request の merge、デプロイを行わないこと
+        EOF
+        if [ -n "$EXTRA_PROMPT" ]; then
+          printf '\n%s\n' "$EXTRA_PROMPT" >> ~/.claude/CLAUDE.md
+        fi
+
+    - uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        trigger_phrase: ${{ inputs.trigger-phrase }}
+        claude_args: |
+          --max-turns ${{ inputs.max-turns }}
+          --model ${{ inputs.model }}
+          ${{ inputs.additional-allowed-tools != '' && format('--allowedTools "{0}"', inputs.additional-allowed-tools) || '' }}

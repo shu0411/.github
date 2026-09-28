@@ -1,0 +1,5 @@
+{
+  "name": "Claude Agent - Respond to Mention",
+  "description": "Pull Requestのコメント・レビューでの @claude メンションにClaude Codeが応答する。",
+  "iconName": "octicon comment-discussion"
+}

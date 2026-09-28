@@ -1,0 +1,49 @@
+name: Claude Agent - Respond to Mention
+
+# Pull Requestのコメント・レビューで `@claude` とメンションされたら、Claude Codeが応答する。
+# Claudeへの共通ルールは共通Action側にあるため、
+# このファイルにはトリガーの判定と実行環境の準備だけを書く。
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  respond:
+    # Pull Request 上の `@claude` を含むコメント・レビューだけを対象にする
+    if: |
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      # TODO: Claudeが lint / test / typecheck を実行できるよう、
+      # このリポジトリに必要な依存関係の準備をここに書く。例:
+      #
+      # - uses: actions/setup-node@v7
+      #   with:
+      #     node-version: "24"
+      # - run: npm ci
+
+      - uses: shu0411/.github/actions/respond-mention@main
+        with:
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # 上で準備したツールをClaudeに許可する（例: npm / uv）
+          # additional-allowed-tools: "Bash(npm:*),Bash(npx:*)"
+          # このリポジトリ固有の追加指示があれば書く
+          # extra-prompt: ""
