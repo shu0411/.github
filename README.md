@@ -8,8 +8,9 @@
 2. ローカルの Claude Code で `/design-issue <番号>` を実行し、Issue を設計済みの仕様書に育てる
 3. 人間が内容を確認し、`ready-for-claude` ラベルを付ける（実装開始の承認）
 4. GitHub Actions 上の Claude Code が実装し、`Closes #<番号>` 付きの PR を作成する
+5. PR のコメント・レビューで `@claude` とメンションすると、Claude Code が修正や質問に応答する
 
-このリポジトリは 1 と 4、および `ready-for-claude` ラベルの作成コマンドを提供する。
+このリポジトリは 1・4・5、および `ready-for-claude` ラベルの作成コマンドを提供する。
 2 の Skill は対象外。
 
 ## 構成
@@ -17,7 +18,8 @@
 | パス | 役割 |
 | --- | --- |
 | [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) | 共通の Issue テンプレート。自前の `ISSUE_TEMPLATE` を持たないリポジトリに自動で適用される |
-| [`actions/implement-issue/`](actions/implement-issue/action.yml) | Claude Code を呼び出す Composite Action。Actions 上での指示（進め方・禁止事項・PR 本文フォーマット）はここが正 |
+| [`actions/implement-issue/`](actions/implement-issue/action.yml) | Issue を実装する Composite Action（フロー 4）。Actions 上での指示（進め方・禁止事項・PR 本文フォーマット）はここが正 |
+| [`actions/respond-mention/`](actions/respond-mention/action.yml) | PR 上の `@claude` メンションに応答する Composite Action（フロー 5）。Actions 上での共通ルール（禁止事項など）はここが正 |
 | [`workflow-templates/`](workflow-templates/) | 各リポジトリに置く呼び出し側 workflow の雛形 |
 | [`.github/workflows/`](.github/workflows/) | このリポジトリ自身の CI（配布物の構文検証） |
 | [`scripts/create-label.sh`](scripts/create-label.sh) | 指定したリポジトリに実装開始用ラベルを作成するコマンド |
@@ -38,13 +40,15 @@ Composite Action は実行時に [`shu0411/dotfiles`](https://github.com/shu0411
 
 1. リポジトリの Secrets に `CLAUDE_CODE_OAUTH_TOKEN` を登録する
    （ローカルで `claude setup-token` を実行して発行。Claude のサブスクリプション契約が前提）
-2. [`workflow-templates/claude-agent-implement.yml`](workflow-templates/claude-agent-implement.yml) を
-   `.github/workflows/` にコピーする
+2. [Claude GitHub App](https://github.com/apps/claude) をリポジトリにインストールする
+3. 使う workflow の雛形を `.github/workflows/` にコピーする
    （Actions の「New workflow」に表示される場合はそこから選んでもよい）
-3. コピーした workflow の TODO 部分に、そのリポジトリで lint / test を動かすための環境準備を書き、
+   - Issue の実装（フロー 4）: [`workflow-templates/claude-agent-implement.yml`](workflow-templates/claude-agent-implement.yml)
+   - PR でのメンション応答（フロー 5）: [`workflow-templates/claude-agent-mention.yml`](workflow-templates/claude-agent-mention.yml)
+4. コピーした workflow の TODO 部分に、そのリポジトリで lint / test を動かすための環境準備を書き、
    必要に応じて `additional-allowed-tools` / `extra-prompt` を設定する
-4. 自前の `.github/ISSUE_TEMPLATE/` があれば削除する（残っていると共通テンプレートは使われない）
-5. 下記のコマンドで実装開始用ラベルを作成する
+5. 自前の `.github/ISSUE_TEMPLATE/` があれば削除する（残っていると共通テンプレートは使われない）
+6. 下記のコマンドで実装開始用ラベルを作成する
 
 ### 実装開始用ラベルの作成
 
@@ -60,7 +64,12 @@ bash scripts/create-label.sh OWNER/REPO
 
 ### Composite Action の入力
 
-入力の一覧と既定値は [`action.yml`](actions/implement-issue/action.yml) を参照。
+入力の一覧と既定値は各 Action の `action.yml`
+（[`implement-issue`](actions/implement-issue/action.yml) /
+[`respond-mention`](actions/respond-mention/action.yml)）を参照。
+
+メンション応答はコメントしたユーザーにリポジトリへの書き込み権限が必要
+（権限のないユーザーのメンションでは実行が失敗する）。
 
 ## 開発
 
