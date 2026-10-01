@@ -30,7 +30,7 @@ inputs:
   label-trigger:
     description: "実装開始のトリガーとなるラベル名"
     required: false
-    default: ready-for-claude
+    default: implement-by-claude
   base-branch:
     description: "作業ブランチの派生元、およびPull Requestの向き先"
     required: false

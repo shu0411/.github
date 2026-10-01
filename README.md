@@ -10,7 +10,7 @@
    - Issue に `design-by-claude` ラベルを付け、GitHub Actions 上の Claude Code に設計させる
      （対話できないため、判断が必要な論点は Issue 本文の「未確定事項」に残る。
      Issue のコメントで `@claude` とメンションして回答・修正依頼をすると設計に反映される）
-3. 人間が内容を確認し、`ready-for-claude` ラベルを付ける（実装開始の承認）
+3. 人間が内容を確認し、`implement-by-claude` ラベルを付ける（実装開始の承認）
 4. GitHub Actions 上の Claude Code が実装し、`Closes #<番号>` 付きの PR を作成する
 5. PR のコメント・レビューで `@claude` とメンションすると、Claude Code が修正や質問に応答する
 
@@ -67,7 +67,7 @@ bash scripts/create-label.sh OWNER/REPO
 ```
 
 `OWNER/REPO` を対象リポジトリ（例: `shu0411/my-project`）に置き換える。
-`design-by-claude` と `ready-for-claude` を作成し、すでに存在する場合は色と説明をスクリプトの定義に更新する。
+`design-by-claude` と `implement-by-claude` を作成し、すでに存在する場合は色と説明をスクリプトの定義に更新する。
 
 ### Composite Action の入力
 

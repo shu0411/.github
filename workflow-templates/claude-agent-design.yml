@@ -3,7 +3,7 @@ name: Claude Agent - Design Issue
 # 簡単な要求だけが書かれたIssueに `design-by-claude` ラベルが付与されたら、
 # Claude Codeが既存コードを調査して設計し、Issue本文を仕様書として更新する。
 # 設計への修正依頼・質問は、Issueのコメントで `@claude` とメンションすると反映・回答される。
-# 実装は行わない（実装は、人間が内容を確認して `ready-for-claude` ラベルを付けてから）。
+# 実装は行わない（実装は、人間が内容を確認して `implement-by-claude` ラベルを付けてから）。
 # Claudeへの指示（進め方・禁止事項）は共通Action側にあるため、
 # このファイルにはトリガーの判定と実行環境の準備だけを書く。
 

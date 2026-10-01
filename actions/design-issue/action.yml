@@ -111,7 +111,7 @@ runs:
           - 更新後、`gh issue comment` でIssueにコメントを1件残すこと。内容は、設計の要約、
             未確定事項の有無、および「未確定事項への回答や修正依頼は、Issueのコメントで
             Claudeにメンションすると設計に反映される」「内容に問題がなければ人間が
-            `ready-for-claude` ラベルを付けて実装を開始する」旨の案内とする
+            `implement-by-claude` ラベルを付けて実装を開始する」旨の案内とする
 
           ## design-issue Skill
 

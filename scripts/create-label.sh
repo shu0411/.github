@@ -6,7 +6,7 @@ if [[ $# -ne 1 ]] || [[ ! "$1" =~ ^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+$ ]];
   exit 1
 fi
 
-gh label create ready-for-claude \
+gh label create implement-by-claude \
   --repo "$1" \
   --force \
   --color 7057ff \

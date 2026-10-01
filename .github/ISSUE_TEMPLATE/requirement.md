@@ -23,5 +23,5 @@ assignees: ""
 <!--
 変更対象ファイル・API構成・データフロー・詳細な受け入れ条件・テスト方法などは
 この時点では不要。ローカルのClaude Codeで `/design-issue <このIssueの番号>` を実行し、
-既存コードを踏まえた設計に育ててから ready-for-claude ラベルを付ける。
+既存コードを踏まえた設計に育ててから implement-by-claude ラベルを付ける。
 -->
