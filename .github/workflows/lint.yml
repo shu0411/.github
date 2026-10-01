@@ -23,5 +23,6 @@ jobs:
       - name: Validate composite actions
         run: uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
 
-      - name: ラベル作成コマンドの構文検証
-        run: bash -n scripts/*.sh
+      - name: シェルスクリプトの構文検証
+        run: |
+          for f in scripts/*.sh actions/*/*.sh; do bash -n "$f"; done

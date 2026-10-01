@@ -17,7 +17,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      issues: read
+      # Pull Requestを作成できなかったときに、状況をIssueへコメントするために必要
+      issues: write
       id-token: write
       actions: read
 

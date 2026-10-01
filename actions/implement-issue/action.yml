@@ -3,6 +3,8 @@ description: >-
   設計済みのIssueをClaude Codeで実装し、Pull Requestを作成する。
   実行環境（checkout・依存関係の準備）は呼び出し側で済ませておくこと。
   進め方・禁止事項・PR本文フォーマットはこのActionのプロンプトに実装されている。
+  Pull Requestが作成されずに終わった場合は、状況をIssueにコメントしてジョブを失敗させる
+  （呼び出し側 workflow に `issues: write` が必要）。
   shu0411/dotfiles を実行時にcheckoutし、グローバルなClaude Code設定（CLAUDE.md/AGENTS.md）を読み込ませる。
 
 inputs:
@@ -44,13 +46,17 @@ runs:
   using: composite
   steps:
     - name: Load global Claude Code config (shu0411/dotfiles)
+      id: setup
       shell: bash
       run: |
+        # 後続の claude-code-action の実行後は action_path が書き換わるため、ここで控えておく
+        echo "action-path=$GITHUB_ACTION_PATH" >> "$GITHUB_OUTPUT"
         git clone --depth 1 https://github.com/shu0411/dotfiles.git ~/dotfiles
         mkdir -p ~/.claude
         cp ~/dotfiles/.claude/CLAUDE.md ~/.claude/CLAUDE.md
 
     - uses: anthropics/claude-code-action@v1
+      id: claude
       with:
         claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
         label_trigger: ${{ inputs.label-trigger }}
@@ -107,8 +113,32 @@ runs:
           Closes #${{ github.event.issue.number }}
           ```
 
+          ## 完了できなかった場合の報告
+
+          Pull Requestを作成できずに作業を終える場合は、終了する前に必ず
+          `gh issue comment ${{ github.event.issue.number }}` でIssueに次の内容をコメントすること。
+
+          - どこまで完了したか（実装・テスト・コミット・push・Pull Request作成のどの段階か）
+          - 権限で拒否されたコマンド（実行しようとしたコマンドをそのまま列挙する）
+          - 失敗したコマンドと、そのエラーメッセージ
+          - 推定される原因と、人間に対応してほしいこと
+
+          拒否されたコマンドを、形を変えて繰り返し試さないこと。代替手段がなければ、
+          上記を報告して終了する。コメントに `@claude` という文字列を書かないこと。
+
           ${{ inputs.extra-prompt }}
         claude_args: |
           --max-turns ${{ inputs.max-turns }}
           --model ${{ inputs.model }}
-          --allowedTools "Edit,Write,Bash(git:*),Bash(gh issue view:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(cd:*),Bash(cat:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
+          --allowedTools "Edit,Write,Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(cd:*),Bash(cat:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
+
+    # Claudeが報告せずに終わった場合に備え、Pull Requestの有無を機械的に確認する
+    - name: Report when no pull request was created
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        EXECUTION_FILE: ${{ steps.claude.outputs.execution_file || format('{0}/claude-execution-output.json', runner.temp) }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: bash "${{ steps.setup.outputs.action-path }}/report-missing-pr.sh"
