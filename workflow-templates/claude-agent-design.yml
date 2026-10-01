@@ -1,0 +1,45 @@
+name: Claude Agent - Design Issue
+
+# 簡単な要求だけが書かれたIssueに `design-by-claude` ラベルが付与されたら、
+# Claude Codeが既存コードを調査して設計し、Issue本文を仕様書として更新する。
+# 設計への修正依頼・質問は、Issueのコメントで `@claude` とメンションすると反映・回答される。
+# 実装は行わない（実装は、人間が内容を確認して `ready-for-claude` ラベルを付けてから）。
+# Claudeへの指示（進め方・禁止事項）は共通Action側にあるため、
+# このファイルにはトリガーの判定と実行環境の準備だけを書く。
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  design:
+    # ラベル付与、または（Pull Request ではない）Issue 上の `@claude` を含むコメントを対象にする。
+    # Claude自身のコメントでは起動しない
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'design-by-claude') ||
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && github.event.comment.user.type != 'Bot' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    # 同じIssueの本文を同時に更新しないよう、Issue単位で直列に実行する
+    concurrency:
+      group: claude-design-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+      actions: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: shu0411/.github/actions/design-issue@main
+        with:
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # 調査に追加のツールが必要であれば許可する
+          # additional-allowed-tools: "Bash(npm:*),Bash(npx:*)"
+          # このリポジトリ固有の追加指示があれば書く
+          # extra-prompt: ""

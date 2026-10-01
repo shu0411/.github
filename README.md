@@ -5,24 +5,29 @@
 ## 全体フロー
 
 1. 人間が Issue テンプレート（Requirement）で簡単な要求を書く
-2. ローカルの Claude Code で `/design-issue <番号>` を実行し、Issue を設計済みの仕様書に育てる
+2. Issue を設計済みの仕様書に育てる。次のどちらかで行う
+   - ローカルの Claude Code で `/design-issue <番号>` を実行し、対話しながら詰める
+   - Issue に `design-by-claude` ラベルを付け、GitHub Actions 上の Claude Code に設計させる
+     （対話できないため、判断が必要な論点は Issue 本文の「未確定事項」に残る。
+     Issue のコメントで `@claude` とメンションして回答・修正依頼をすると設計に反映される）
 3. 人間が内容を確認し、`ready-for-claude` ラベルを付ける（実装開始の承認）
 4. GitHub Actions 上の Claude Code が実装し、`Closes #<番号>` 付きの PR を作成する
 5. PR のコメント・レビューで `@claude` とメンションすると、Claude Code が修正や質問に応答する
 
-このリポジトリは 1・4・5、および `ready-for-claude` ラベルの作成コマンドを提供する。
-2 の Skill は対象外。
+このリポジトリは 1・2（Actions 上での設計）・4・5、およびラベルの作成コマンドを提供する。
+2 の Skill 本体は [`shu0411/dotfiles`](https://github.com/shu0411/dotfiles) にあり、対象外。
 
 ## 構成
 
 | パス | 役割 |
 | --- | --- |
 | [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) | 共通の Issue テンプレート。自前の `ISSUE_TEMPLATE` を持たないリポジトリに自動で適用される |
+| [`actions/design-issue/`](actions/design-issue/action.yml) | Issue を設計する Composite Action（フロー 2）。ラベル付与時は dotfiles の `design-issue` Skill に沿って設計し（手順は Skill が正）、Issue 上の `@claude` メンション時は Skill を使わず既存の設計への修正依頼・質問に応答する。Actions 上での共通ルール（禁止事項など）はここが正 |
 | [`actions/implement-issue/`](actions/implement-issue/action.yml) | Issue を実装する Composite Action（フロー 4）。Actions 上での指示（進め方・禁止事項・PR 本文フォーマット）はここが正 |
 | [`actions/respond-mention/`](actions/respond-mention/action.yml) | PR 上の `@claude` メンションに応答する Composite Action（フロー 5）。Actions 上での共通ルール（禁止事項など）はここが正 |
 | [`workflow-templates/`](workflow-templates/) | 各リポジトリに置く呼び出し側 workflow の雛形 |
 | [`.github/workflows/`](.github/workflows/) | このリポジトリ自身の CI（配布物の構文検証） |
-| [`scripts/create-label.sh`](scripts/create-label.sh) | 指定したリポジトリに実装開始用ラベルを作成するコマンド |
+| [`scripts/create-label.sh`](scripts/create-label.sh) | 指定したリポジトリに設計開始用・実装開始用ラベルを作成するコマンド |
 
 実行環境（checkout・依存関係の準備）はリポジトリごとに異なるため、共通化するのは
 Claude を呼び出す step のみ。環境構築は各リポジトリの workflow に書く。
@@ -33,7 +38,8 @@ PR 本文フォーマットなどを書く必要はない
 
 Composite Action は実行時に [`shu0411/dotfiles`](https://github.com/shu0411/dotfiles)
 をcheckoutし、`~/.claude/CLAUDE.md` を配置してグローバルなClaude Code設定
-（`CLAUDE.md` 本体と、そこから `@` importされる `AGENTS.md`）を読み込ませる
+（`CLAUDE.md` 本体と、そこから `@` importされる `AGENTS.md`）を読み込ませる。
+`design-issue` はラベル付与での設計時に、これに加えて `skills/design-issue/SKILL.md` をプロンプトに取り込む
 （dotfiles は public である必要がある）。
 
 ## 導入手順
@@ -43,14 +49,15 @@ Composite Action は実行時に [`shu0411/dotfiles`](https://github.com/shu0411
 2. [Claude GitHub App](https://github.com/apps/claude) をリポジトリにインストールする
 3. 使う workflow の雛形を `.github/workflows/` にコピーする
    （Actions の「New workflow」に表示される場合はそこから選んでもよい）
+   - Issue の設計（フロー 2）: [`workflow-templates/claude-agent-design.yml`](workflow-templates/claude-agent-design.yml)
    - Issue の実装（フロー 4）: [`workflow-templates/claude-agent-implement.yml`](workflow-templates/claude-agent-implement.yml)
    - PR でのメンション応答（フロー 5）: [`workflow-templates/claude-agent-mention.yml`](workflow-templates/claude-agent-mention.yml)
-4. コピーした workflow の TODO 部分に、そのリポジトリで lint / test を動かすための環境準備を書き、
+4. コピーした workflow の TODO 部分（実装・メンション応答の雛形にある）に、そのリポジトリで lint / test を動かすための環境準備を書き、
    必要に応じて `additional-allowed-tools` / `extra-prompt` を設定する
 5. 自前の `.github/ISSUE_TEMPLATE/` があれば削除する（残っていると共通テンプレートは使われない）
-6. 下記のコマンドで実装開始用ラベルを作成する
+6. 下記のコマンドで設計開始用・実装開始用ラベルを作成する
 
-### 実装開始用ラベルの作成
+### 設計開始用・実装開始用ラベルの作成
 
 GitHub CLI（`gh`）と Bash が必要。`gh auth login` で、対象リポジトリのラベルを
 作成できる権限を持つアカウントにログインし、このリポジトリのルートで実行する。
@@ -60,15 +67,16 @@ bash scripts/create-label.sh OWNER/REPO
 ```
 
 `OWNER/REPO` を対象リポジトリ（例: `shu0411/my-project`）に置き換える。
-`ready-for-claude` を作成し、すでに存在する場合は色と説明をスクリプトの定義に更新する。
+`design-by-claude` と `ready-for-claude` を作成し、すでに存在する場合は色と説明をスクリプトの定義に更新する。
 
 ### Composite Action の入力
 
 入力の一覧と既定値は各 Action の `action.yml`
-（[`implement-issue`](actions/implement-issue/action.yml) /
+（[`design-issue`](actions/design-issue/action.yml) /
+[`implement-issue`](actions/implement-issue/action.yml) /
 [`respond-mention`](actions/respond-mention/action.yml)）を参照。
 
-メンション応答はコメントしたユーザーにリポジトリへの書き込み権限が必要
+メンション応答（PR 上・Issue 上とも）はコメントしたユーザーにリポジトリへの書き込み権限が必要
 （権限のないユーザーのメンションでは実行が失敗する）。
 
 ## 開発

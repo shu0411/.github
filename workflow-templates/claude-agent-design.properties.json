@@ -1,0 +1,5 @@
+{
+  "name": "Claude Agent - Design Issue",
+  "description": "design-by-claude ラベルが付いたIssueをClaude Codeが調査・設計し、Issue本文を仕様書として更新する。Issue上の @claude メンションで設計の修正にも応答する。",
+  "iconName": "octicon issue-opened"
+}
