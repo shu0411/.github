@@ -23,7 +23,7 @@
 | --- | --- |
 | [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) | 共通の Issue テンプレート。自前の `ISSUE_TEMPLATE` を持たないリポジトリに自動で適用される |
 | [`actions/design-issue/`](actions/design-issue/action.yml) | Issue を設計する Composite Action（フロー 2）。ラベル付与時は dotfiles の `design-issue` Skill に沿って設計し（手順は Skill が正）、Issue 上の `@claude` メンション時は Skill を使わず既存の設計への修正依頼・質問に応答する。Actions 上での共通ルール（禁止事項など）はここが正 |
-| [`actions/implement-issue/`](actions/implement-issue/action.yml) | Issue を実装する Composite Action（フロー 4）。Actions 上での指示（進め方・禁止事項・PR 本文フォーマット）はここが正 |
+| [`actions/implement-issue/`](actions/implement-issue/action.yml) | Issue を実装する Composite Action（フロー 4）。Actions 上での指示（進め方・禁止事項・PR 本文フォーマット）はここが正。PR が作成されずに終わった場合は、権限で拒否されたコマンドと Claude の最終メッセージを Issue にコメントしてジョブを失敗させる（[`report-missing-pr.sh`](actions/implement-issue/report-missing-pr.sh)） |
 | [`actions/respond-mention/`](actions/respond-mention/action.yml) | PR 上の `@claude` メンションに応答する Composite Action（フロー 5）。Actions 上での共通ルール（禁止事項など）はここが正 |
 | [`workflow-templates/`](workflow-templates/) | 各リポジトリに置く呼び出し側 workflow の雛形 |
 | [`.github/workflows/`](.github/workflows/) | このリポジトリ自身の CI（配布物の構文検証） |
@@ -86,7 +86,7 @@ bash scripts/create-label.sh OWNER/REPO
 ```bash
 uvx --from actionlint-py actionlint .github/workflows/*.yml workflow-templates/*.yml
 uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
-bash -n scripts/*.sh
+for f in scripts/*.sh actions/*/*.sh; do bash -n "$f"; done
 ```
 
 呼び出し側は `@main` を参照しているため、`main` への変更は即座に全リポジトリへ反映される。
