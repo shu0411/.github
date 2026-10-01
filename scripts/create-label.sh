@@ -6,8 +6,14 @@ if [[ $# -ne 1 ]] || [[ ! "$1" =~ ^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+$ ]];
   exit 1
 fi
 
-gh label create ready-for-claude \
+gh label create implement-by-claude \
   --repo "$1" \
   --force \
   --color 7057ff \
   --description 'Claudeに実装の依頼をする準備が整ったIssue。このラベルが付与されると、GitHub ActionsによりClaudeが呼び出され、実装が開始される。'
+
+gh label create design-by-claude \
+  --repo "$1" \
+  --force \
+  --color 0e8a16 \
+  --description 'Claudeに設計を依頼するIssue。このラベルが付与されると、GitHub ActionsによりClaudeが呼び出され、Issue本文が仕様書として更新される。'

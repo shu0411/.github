@@ -1,0 +1,158 @@
+name: Design Issue with Claude
+description: >-
+  簡単な要求だけが書かれたIssueをClaude Codeが調査・設計し、Issue本文を仕様書として更新する。
+  実装・コミット・ブランチ作成・ラベル付与は行わない。
+  起動したイベントによって動きが分かれる。
+  ラベル付与（issues）では、shu0411/dotfiles の design-issue Skill を読み込んで設計を行う
+  （手順はSkillが正で、このActionはActions上（対話なし）で動かすための差分だけを持つ）。
+  Issueコメントでのメンション（issue_comment）では、Skillは使わず、既存の設計に対する
+  修正依頼・質問としてコメントに応答する。
+  トリガーの判定（job の `if:`）と実行環境（checkout）は呼び出し側で済ませておくこと。
+  どちらの場合もグローバルなClaude Code設定（CLAUDE.md/AGENTS.md）を読み込ませ、
+  共通ルール（禁止事項など）を追記する。
+
+inputs:
+  claude-code-oauth-token:
+    description: "Claude Codeの認証トークン（`claude setup-token` で発行）"
+    required: true
+  additional-allowed-tools:
+    description: >-
+      リポジトリ固有のツール許可（カンマ区切り）。例: `Bash(npm:*),Bash(uv:*)`。
+      ファイルの読み取り・検索と、Issueの閲覧・本文更新・コメントは常に許可される。
+    required: false
+    default: ""
+  extra-prompt:
+    description: "共通ルールに追記する、リポジトリ固有の指示"
+    required: false
+    default: ""
+  model:
+    description: "使用するモデル"
+    required: false
+    default: claude-sonnet-5
+  max-turns:
+    description: "最大ターン数"
+    required: false
+    default: "40"
+  label-trigger:
+    description: >-
+      設計開始のトリガーとなるラベル名。変更する場合は、呼び出し側 workflow の `if:` の判定文字列も合わせて変えること
+    required: false
+    default: design-by-claude
+
+runs:
+  using: composite
+  steps:
+    - name: Load global Claude Code config (shu0411/dotfiles)
+      shell: bash
+      env:
+        EXTRA_PROMPT: ${{ inputs.extra-prompt }}
+      run: |
+        git clone --depth 1 https://github.com/shu0411/dotfiles.git ~/dotfiles
+        mkdir -p ~/.claude
+        cp ~/dotfiles/.claude/CLAUDE.md ~/.claude/CLAUDE.md
+        cat >> ~/.claude/CLAUDE.md <<'EOF'
+
+        ## GitHub Actions での Issue 設計
+
+        GitHub Actions 上で Issue の設計・設計の修正を行うときは、上記に加えて以下に従う
+        （上記や各リポジトリに別の記述があっても、この指示を優先する）。
+
+        - 人間と対話できないため、確認を求めて停止せず最後まで進めること
+        - Issue本文を更新するときは、リポジトリ直下の `.design-issue-body.md` に本文全体を
+          書き出してから `gh issue edit <issue番号> --body-file .design-issue-body.md` で更新すること
+        - `.design-issue-body.md` 以外のファイルを作成・編集しないこと
+        - コミット、ブランチ作成、push、Pull Requestの作成を行わないこと
+        - ラベルの付与・削除、Issueのタイトル変更・クローズなど、本文更新とコメント以外の
+          Issue操作を行わないこと
+        - Issue本文の `## 要求` は、人間が書いた内容を書き換えないこと
+        - Issueへのコメントに `@claude` という文字列を書かないこと
+        EOF
+        if [ -n "$EXTRA_PROMPT" ]; then
+          printf '\n%s\n' "$EXTRA_PROMPT" >> ~/.claude/CLAUDE.md
+        fi
+
+    # ラベル付与: design-issue Skill に沿って設計する
+    - name: Load design-issue skill (shu0411/dotfiles)
+      id: skill
+      if: github.event_name != 'issue_comment'
+      shell: bash
+      run: |
+        delimiter="SKILL_$(openssl rand -hex 8)"
+        {
+          echo "content<<$delimiter"
+          cat ~/dotfiles/skills/design-issue/SKILL.md
+          echo
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Design issue
+      if: github.event_name != 'issue_comment'
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        label_trigger: ${{ inputs.label-trigger }}
+        prompt: |
+          Issue #${{ github.event.issue.number }} の実装前設計を行い、Issue本文を仕様書として更新してください。
+
+          手順は、末尾の「design-issue Skill」に従うこと。
+          ただし今回はGitHub Actions上での実行で人間と対話できないため、以下の点はSkillの記述より
+          この指示を優先する。
+
+          ## Actions上での読み替え
+
+          - 対象のIssue番号は #${{ github.event.issue.number }} とする
+          - Issueは `gh issue view ${{ github.event.issue.number }} --comments` でコメントも含めて読むこと。
+            コメントに設計への要望や指摘があれば、設計に反映する
+          - Step 1 の確認事項（ラベルの状態、既に設計済みのセクションがある場合）は、人間に確認せず
+            続行する。既に設計済みのセクションがある場合は、新規設計ではなく更新として扱う
+          - Step 5 の対話は行わない。人間の判断が必要な論点は推測で確定させず、Issue本文の末尾に
+            `## 未確定事項` セクションを設けて、論点・選択肢・推奨案を箇条書きで残すこと。
+            それ以外の部分は推奨案を前提に書いてよい（その旨を未確定事項に明記する）
+          - 更新後、`gh issue comment` でIssueにコメントを1件残すこと。内容は、設計の要約、
+            未確定事項の有無、および「未確定事項への回答や修正依頼は、Issueのコメントで
+            Claudeにメンションすると設計に反映される」「内容に問題がなければ人間が
+            `implement-by-claude` ラベルを付けて実装を開始する」旨の案内とする
+
+          ## design-issue Skill
+
+          ${{ steps.skill.outputs.content }}
+        claude_args: |
+          --max-turns ${{ inputs.max-turns }}
+          --model ${{ inputs.model }}
+          --allowedTools "Read,Glob,Grep,Write,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(cd:*),Bash(cat:*),Bash(ls:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
+
+    # Issueコメントでのメンション: 既存の設計に対する修正依頼・質問に応答する
+    - name: Respond to comment on designed issue
+      if: github.event_name == 'issue_comment'
+      uses: anthropics/claude-code-action@v1
+      with:
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        prompt: |
+          設計済みのIssue #${{ github.event.issue.number }} に、設計への修正依頼または質問のコメントが届きました。
+          このコメントに応答してください: ${{ github.event.comment.html_url }}
+
+          ## 進め方
+
+          1. `gh issue view ${{ github.event.issue.number }} --comments` で、現在のIssue本文（設計）とコメントの経緯を読み、
+             上記のコメントが何を求めているかを把握する
+          2. 回答・修正に必要な範囲に限って、リポジトリの関連コードを調べる
+          3. コメントの内容に応じて応答する
+             - 質問の場合: Issue本文は更新せず、`gh issue comment` で回答する
+             - 修正依頼の場合: 現在のIssue本文を土台に、依頼に関係する箇所だけを書き換えて
+               Issue本文を更新し、`gh issue comment` で変更した箇所と内容を報告する
+
+          ## 修正時のルール
+
+          - 1から設計し直さないこと。依頼に関係しないセクションは、文面を変えずにそのまま残す
+          - 依頼の反映によって他のセクション（受け入れ条件・テスト計画など）と矛盾が生じる場合に限り、
+            そのセクションも合わせて直し、報告のコメントに明記する
+          - `## 未確定事項` の論点にコメントで回答があった場合は、その内容を設計に反映し、
+            解消した論点をこのセクションから取り除く
+          - 依頼の内容が曖昧で、推測では修正できない場合は、Issue本文は更新せず、
+            コメントで確認したい点を質問する
+          - Issue本文にまだ設計のセクション（仕様・技術設計など）がない場合は、設計は行わず、
+            「`${{ inputs.label-trigger }}` ラベルを付けると設計が始まる」旨をコメントで案内する
+        claude_args: |
+          --max-turns ${{ inputs.max-turns }}
+          --model ${{ inputs.model }}
+          --allowedTools "Read,Glob,Grep,Write,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(cd:*),Bash(cat:*),Bash(ls:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
