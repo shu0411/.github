@@ -19,6 +19,7 @@ inputs:
     description: >-
       リポジトリ固有のツール許可（カンマ区切り）。例: `Bash(npm:*),Bash(uv:*)`。
       ファイルの読み取り・検索と、Issueの閲覧・本文更新・コメントは常に許可される。
+      Issueコメントからの起動時は、新しいIssueの作成も許可される。
     required: false
     default: ""
   extra-prompt:
@@ -66,6 +67,10 @@ runs:
           Issue操作を行わないこと
         - Issue本文の `## 要求` は、人間が書いた内容を書き換えないこと
         - Issueへのコメントに `@claude` という文字列を書かないこと
+        - Issueコメントから起動した場合に限り、人間から明示的に依頼された場合は、
+          同じリポジトリにある別のIssueへのコメント、または新しいIssueの作成を行ってよい
+        - 別のIssueへのコメントや新しいIssueの作成を行った場合は、起動元のIssueに
+          対象Issueの番号とURLをコメントして報告すること
         EOF
         if [ -n "$EXTRA_PROMPT" ]; then
           printf '\n%s\n' "$EXTRA_PROMPT" >> ~/.claude/CLAUDE.md
@@ -140,6 +145,9 @@ runs:
              - 質問の場合: Issue本文は更新せず、`gh issue comment` で回答する
              - 修正依頼の場合: 現在のIssue本文を土台に、依頼に関係する箇所だけを書き換えて
                Issue本文を更新し、`gh issue comment` で変更した箇所と内容を報告する
+             - 別のIssueへのコメントまたは新しいIssueの作成を明示的に依頼された場合:
+               `gh issue comment` または `gh issue create` で依頼を実行し、起動元のIssueに
+               対象Issueの番号とURLを報告する
 
           ## 修正時のルール
 
@@ -155,4 +163,4 @@ runs:
         claude_args: |
           --max-turns ${{ inputs.max-turns }}
           --model ${{ inputs.model }}
-          --allowedTools "Read,Glob,Grep,Write,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(cd:*),Bash(cat:*),Bash(ls:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
+          --allowedTools "Read,Glob,Grep,Write,Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh issue create:*),Bash(cd:*),Bash(cat:*),Bash(ls:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"

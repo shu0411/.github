@@ -13,7 +13,8 @@ inputs:
   additional-allowed-tools:
     description: >-
       リポジトリ固有のツール許可（カンマ区切り）。例: `Bash(npm:*),Bash(uv:*)`。
-      ファイル編集と、対象ブランチへの git add / commit / push は常に許可される。
+      ファイル編集、対象ブランチへの git add / commit / push、Issueの閲覧・コメント・作成は
+      常に許可される。
     required: false
     default: ""
   extra-prompt:
@@ -59,6 +60,11 @@ runs:
         - 依頼の範囲外のファイルを変更しないこと
         - Pull Request の向き先ブランチへ直接 push しないこと
         - Pull Request の merge、デプロイを行わないこと
+        - 人間から明示的に依頼された場合は、同じリポジトリにある別のIssueへのコメント、
+          または新しいIssueの作成を行ってよい
+        - 別のIssueへのコメントや新しいIssueの作成を行った場合は、対象Issueの番号とURLを
+          起動元のPull Requestにコメントして報告すること
+        - IssueやPull Requestへのコメントに `@claude` という文字列を書かないこと
         EOF
         if [ -n "$EXTRA_PROMPT" ]; then
           printf '\n%s\n' "$EXTRA_PROMPT" >> ~/.claude/CLAUDE.md
@@ -71,4 +77,4 @@ runs:
         claude_args: |
           --max-turns ${{ inputs.max-turns }}
           --model ${{ inputs.model }}
-          ${{ inputs.additional-allowed-tools != '' && format('--allowedTools "{0}"', inputs.additional-allowed-tools) || '' }}
+          --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue create:*)${{ inputs.additional-allowed-tools != '' && format(',{0}', inputs.additional-allowed-tools) || '' }}"
