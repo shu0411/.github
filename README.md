@@ -12,7 +12,9 @@
      Issue のコメントで `@claude` とメンションして回答・修正依頼をすると設計に反映される）
 3. 人間が内容を確認し、`implement-by-claude` ラベルを付ける（実装開始の承認）
 4. GitHub Actions 上の Claude Code が実装し、`Closes #<番号>` 付きの PR を作成する
-5. PR のコメント・レビューで `@claude` とメンションすると、Claude Code が修正や質問に応答する
+5. PR のコメント・レビューで `@claude` とメンションすると、Claude Code が修正や質問に応答する。
+   Issue上・PR上のメンションでは、明示的に依頼すると、同じリポジトリの別Issueへのコメントや
+   新しいIssueの作成も行える
 
 このリポジトリは 1・2（Actions 上での設計）・4・5、およびラベルの作成コマンドを提供する。
 2 の Skill 本体は [`shu0411/dotfiles`](https://github.com/shu0411/dotfiles) にあり、対象外。
@@ -87,6 +89,7 @@ bash scripts/create-label.sh OWNER/REPO
 uvx --from actionlint-py actionlint .github/workflows/*.yml workflow-templates/*.yml
 uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
 for f in scripts/*.sh actions/*/*.sh; do bash -n "$f"; done
+bash scripts/test-actions.sh
 ```
 
 呼び出し側は `@main` を参照しているため、`main` への変更は即座に全リポジトリへ反映される。

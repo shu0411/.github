@@ -26,3 +26,6 @@ jobs:
       - name: シェルスクリプトの構文検証
         run: |
           for f in scripts/*.sh actions/*/*.sh; do bash -n "$f"; done
+
+      - name: Actionの振る舞いを検証
+        run: bash scripts/test-actions.sh
