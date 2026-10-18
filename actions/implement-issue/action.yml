@@ -28,7 +28,7 @@ inputs:
   max-turns:
     description: "最大ターン数"
     required: false
-    default: "100"
+    default: "300"
   label-trigger:
     description: "実装開始のトリガーとなるラベル名"
     required: false
