@@ -52,7 +52,8 @@ runs:
           const { prepare } = require(`${process.env.REVIEW_ACTION_PATH}/review.cjs`);
           await prepare({ github, context, core, workspace: process.env.GITHUB_WORKSPACE });
           const fs = require('node:fs');
-          core.setOutput('prompt', fs.readFileSync(`${process.env.REVIEW_ACTION_PATH}/prompt.md`, 'utf8'));
+          const read = (name) => fs.readFileSync(`${process.env.REVIEW_ACTION_PATH}/${name}`, 'utf8');
+          core.setOutput('prompt', `${read('prompt.md')}\n## レポートテンプレート\n\n\`\`\`\`markdown\n${read('template.md')}\`\`\`\`\n`);
 
     - name: 読み取り専用で依存更新を調査
       id: claude

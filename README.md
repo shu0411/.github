@@ -132,7 +132,9 @@ CI 完了は待たず、完了後の再調査やコメントの自動更新も�
 
 ### 調査と権限
 
-調査基準の正は [`prompt.md`](actions/review-dependency-update/prompt.md)。
+調査基準の正は [`prompt.md`](actions/review-dependency-update/prompt.md)、
+コメント本文の構成の正は [`template.md`](actions/review-dependency-update/template.md)。
+テンプレートは prompt.md の末尾に付けて Claude に渡す。ローカルの調査スキルも同じファイルを参照する。
 公開の一次情報と PR の base/head のコードを照合し、以下を日本語でコメントする。
 
 - 脆弱性の条件、影響バージョンと修正版
