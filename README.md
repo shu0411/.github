@@ -147,7 +147,7 @@ PR 内の hooks・MCP・エージェント指示ファイルは読み込まず�
 Claude の利用ツールは読み取り・検索に制限し、MCP サーバーは無効化する。
 既定ブランチの checkout は信頼済みであることを前提とする。使う runner は GitHub-hosted を想定する。
 
-リポジトリ・Dependabot の作者 ID・PR の状態・イベントの base/head SHA を検証する。
+リポジトリ・Dependabot の作者 login・PR の状態・イベントの base/head SHA を検証する。
 調査中に PR が更新された場合は投稿をスキップする。
 コメントは `github-actions[bot]` の既存の調査コメントを更新し、メンションは無効化する。
 自動修正・マージ・デプロイは行わない。

@@ -22,7 +22,6 @@ function selectTarget({ repo, pr, expected }) {
     pr.number === expected.number &&
     pr.head?.ref?.startsWith("dependabot/") &&
     pr.user?.login === "dependabot[bot]" &&
-    pr.user?.id === 49699333 &&
     pr.head?.repo?.full_name === fullName &&
     pr.base?.repo?.full_name === fullName &&
     pr.head.sha === expected.head &&

@@ -13,7 +13,7 @@ const repo = { owner: "shu0411", repo: "trade-lab" };
 const pr = () => ({
   number: 12,
   state: "open",
-  user: { login: "dependabot[bot]", id: 49699333 },
+  user: { login: "dependabot[bot]" },
   head: {
     sha,
     ref: "dependabot/npm_and_yarn/frontend/example",
@@ -42,7 +42,7 @@ const run = () => ({
 });
 const options = () => ({ repo: { ...repo }, pr: pr(), expected: expected() });
 
-test("先行する CI がなくても Dependabot PR を対象にする", () => {
+test("ユーザー ID と先行 CI がなくても Dependabot PR を対象にする", () => {
   assert.equal(selectTarget(options()).number, 12);
 });
 for (const [name, mutate] of [
@@ -62,12 +62,6 @@ for (const [name, mutate] of [
     "通常ユーザーの PR",
     (o) => {
       o.pr.user.login = "someone";
-    },
-  ],
-  [
-    "同名の別ユーザー",
-    (o) => {
-      o.pr.user.id = 1;
     },
   ],
   [
