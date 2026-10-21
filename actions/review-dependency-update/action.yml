@@ -1,0 +1,88 @@
+name: Review dependency update with Claude
+description: >-
+  Dependabot PR の脆弱性・更新前の影響・更新後の互換性を調査する。
+  review は読み取り権限、publish は別ジョブのコメント権限で実行する。
+inputs:
+  mode:
+    description: "review または publish。必ず別ジョブで実行する"
+    default: review
+  claude-code-oauth-token:
+    description: "review 用の Claude 認証トークン"
+    required: false
+  max-turns:
+    description: "調査の最大ターン数"
+    required: false
+    default: "60"
+  metadata:
+    description: "publish 用。review の metadata 出力をそのまま渡す"
+    required: false
+  report:
+    description: "publish 用。review の report 出力をそのまま渡す"
+    required: false
+outputs:
+  metadata:
+    description: "調査した PR・base/head SHA・資料収集時点の CI 状態"
+    value: ${{ steps.prepare.outputs.metadata }}
+  report:
+    description: "Claude の構造化された調査結果"
+    value: ${{ steps.claude.outputs.structured_output }}
+runs:
+  using: composite
+  steps:
+    - name: 入力を確認
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        TOKEN: ${{ inputs.claude-code-oauth-token }}
+      run: |
+        case "$MODE" in
+          review) test -n "$TOKEN" || { echo 'Claude の認証トークンが必要です。' >&2; exit 1; } ;;
+          publish) ;;
+          *) echo 'mode は review または publish を指定してください。' >&2; exit 1 ;;
+        esac
+
+    - name: 実行元を確認して調査資料を収集
+      id: prepare
+      if: inputs.mode == 'review'
+      uses: actions/github-script@v8
+      env:
+        REVIEW_ACTION_PATH: ${{ github.action_path }}
+      with:
+        script: |
+          const { prepare } = require(`${process.env.REVIEW_ACTION_PATH}/review.cjs`);
+          await prepare({ github, context, core, workspace: process.env.GITHUB_WORKSPACE });
+          const fs = require('node:fs');
+          core.setOutput('prompt', fs.readFileSync(`${process.env.REVIEW_ACTION_PATH}/prompt.md`, 'utf8'));
+
+    - name: 読み取り専用で依存更新を調査
+      id: claude
+      if: inputs.mode == 'review' && steps.prepare.outputs.ready == 'true'
+      uses: anthropics/claude-code-action@v1
+      with:
+        github_token: ${{ github.token }}
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        allowed_bots: "dependabot[bot]"
+        prompt: ${{ steps.prepare.outputs.prompt }}
+        show_full_output: "false"
+        claude_args: >-
+          --max-turns ${{ inputs.max-turns }}
+          --tools Read,Glob,Grep,WebSearch,WebFetch
+          --allowedTools Read,Glob,Grep,WebSearch,WebFetch
+          --disallowedTools Bash,Edit,Write,NotebookEdit,Agent,Task
+          --strict-mcp-config
+          --mcp-config '{"mcpServers":{}}'
+          --json-schema '{"type":"object","properties":{"review":{"type":"string","minLength":1,"maxLength":48000}},"required":["review"],"additionalProperties":false}'
+
+    - name: 対象を再確認してコメントを投稿・更新
+      if: inputs.mode == 'publish'
+      uses: actions/github-script@v8
+      env:
+        REVIEW_ACTION_PATH: ${{ github.action_path }}
+        REVIEW_METADATA: ${{ inputs.metadata }}
+        REVIEW_REPORT: ${{ inputs.report }}
+      with:
+        script: |
+          const { publish } = require(`${process.env.REVIEW_ACTION_PATH}/review.cjs`);
+          const posted = await publish({ github, context, metadata: process.env.REVIEW_METADATA,
+            report: process.env.REVIEW_REPORT });
+          core.info(posted ? '調査コメントを投稿・更新しました。' : '対象が更新されたため投稿をスキップしました。');
