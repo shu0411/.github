@@ -112,6 +112,9 @@ bash scripts/test-actions.sh
 このリポジトリ自身も [同じワークフロー](.github/workflows/claude-dependency-review.yml) を使い、
 既存の `Lint` と並列に実行する。このリポジトリにも同じ Actions Secret の登録が必要。
 
+調査の最大ターン数は既定で 60。必要に応じて呼び出し側の `with.max-turns` で変更できる。
+実行時間は呼び出し側ジョブの `timeout-minutes` にも制限される（テンプレートは 20 分）。
+
 ### 起動と CI の扱い
 
 作成元ブランチ名が `dependabot/` で始まり、作者が Dependabot 本人の PR のみ調査する。

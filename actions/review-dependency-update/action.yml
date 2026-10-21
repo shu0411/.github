@@ -9,6 +9,10 @@ inputs:
   claude-code-oauth-token:
     description: "review 用の Claude 認証トークン"
     required: false
+  max-turns:
+    description: "調査の最大ターン数"
+    required: false
+    default: "60"
   metadata:
     description: "publish 用。review の metadata 出力をそのまま渡す"
     required: false
@@ -61,7 +65,7 @@ runs:
         prompt: ${{ steps.prepare.outputs.prompt }}
         show_full_output: "false"
         claude_args: >-
-          --max-turns 30
+          --max-turns ${{ inputs.max-turns }}
           --tools Read,Glob,Grep,WebSearch,WebFetch
           --allowedTools Read,Glob,Grep,WebSearch,WebFetch
           --disallowedTools Bash,Edit,Write,NotebookEdit,Agent,Task
