@@ -29,3 +29,6 @@ jobs:
 
       - name: Actionの振る舞いを検証
         run: bash scripts/test-actions.sh
+
+      - name: 依存更新レビューの振る舞いを検証
+        run: node actions/review-dependency-update/review.test.cjs

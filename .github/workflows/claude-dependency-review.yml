@@ -1,0 +1,54 @@
+name: Claude Dependency Review
+
+# PR のコードは実行せず、CI と並列で調査する。先行 CI の設定は不要。
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+concurrency:
+  group: dependency-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.user.id == 49699333 &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      metadata: ${{ steps.review.outputs.metadata }}
+      report: ${{ steps.review.outputs.report }}
+    steps:
+      # PR head を checkout しない。信頼済みの既定ブランチを使用する。
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: shu0411/.github/actions/review-dependency-update@main
+        id: review
+        with:
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  publish:
+    needs: review
+    if: needs.review.outputs.report != '' && needs.review.outputs.metadata != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # このジョブには Claude の認証情報を渡さない。
+      - uses: shu0411/.github/actions/review-dependency-update@main
+        with:
+          mode: publish
+          metadata: ${{ needs.review.outputs.metadata }}
+          report: ${{ needs.review.outputs.report }}
