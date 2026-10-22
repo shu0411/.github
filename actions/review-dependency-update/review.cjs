@@ -1,7 +1,9 @@
+const { createHash } = require("node:crypto");
 const { writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const marker = "<!-- dependency-review -->";
+const updatesMarker = (key) => `<!-- dependency-review-updates: ${key} -->`;
 const sourceFile =
   /\.(?:[cm]?[jt]sx?|py|css|html|json|toml|ya?ml|lock|txt|md|ini|cfg)$/i;
 const unsafePath =
@@ -51,6 +53,33 @@ async function getTarget({ github, context }) {
     pull_number: expected.number,
   });
   return selectTarget({ repo: context.repo, pr, expected });
+}
+
+// Dependabot のコミットメッセージにある更新内容（パッケージ・新版・種別）。rebase では変わらない。
+async function updatesKey({ github, repo, pr }) {
+  const commits = await github.paginate(github.rest.pulls.listCommits, {
+    ...repo,
+    pull_number: pr.number,
+    per_page: 100,
+  });
+  if (commits.length !== 1 || commits[0].sha !== pr.head.sha) return null;
+  const updates = commits[0].commit?.message?.match(
+    /^updated-dependencies:\n[\s\S]*?^\.\.\.$/m,
+  )?.[0];
+  return updates ? createHash("sha256").update(updates).digest("hex") : null;
+}
+
+async function findComment({ github, repo, pr }) {
+  const comments = await github.paginate(github.rest.issues.listComments, {
+    ...repo,
+    issue_number: pr.number,
+    per_page: 100,
+  });
+  return comments.find(
+    (comment) =>
+      comment.user?.login === "github-actions[bot]" &&
+      comment.body?.startsWith(marker),
+  );
 }
 
 async function collectCi({ github, repo, pr }) {
@@ -275,6 +304,16 @@ async function prepare({ github, context, core, workspace }) {
     core.info("対象外または古い実行のためスキップします。");
     return;
   }
+  const updates = await updatesKey({ github, repo: context.repo, pr });
+  if (
+    updates &&
+    (await findComment({ github, repo: context.repo, pr }))?.body.includes(
+      updatesMarker(updates),
+    )
+  ) {
+    core.info("依存の更新内容が調査済みのためスキップします。");
+    return;
+  }
   const data = await collect({ github, repo: context.repo, pr });
   // コードを元のパスに配置しない。PR の hooks / MCP / CLAUDE.md を読み込ませない。
   for (const version of ["before", "after"]) {
@@ -298,6 +337,7 @@ async function prepare({ github, context, core, workspace }) {
       base: pr.base.sha,
       repository: `${context.repo.owner}/${context.repo.repo}`,
       ci: { state: data.ci.state, checkedAt: data.ci.checkedAt },
+      updates,
     }),
   );
   core.setOutput("ready", "true");
@@ -317,6 +357,7 @@ async function publish({ github, context, metadata, report }) {
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(
       target.ci?.checkedAt,
     ) ||
+    !(target.updates === null || /^[a-f0-9]{64}$/.test(target.updates)) ||
     typeof output.review !== "string" ||
     !output.review.trim() ||
     output.review.length > 48000
@@ -333,21 +374,13 @@ async function publish({ github, context, metadata, report }) {
   if (!pr) return false;
   const review = output.review.replace(/@/g, "@\u200b");
   const body =
-    `${marker}\n## 依存更新の調査結果\n\n${review}\n\n---\n` +
+    `${marker}\n${target.updates ? `${updatesMarker(target.updates)}\n` : ""}` +
+    `## 依存更新の調査結果\n\n${review}\n\n---\n` +
     `対象 head: \`${target.head}\`\n対象 base: \`${target.base}\`\n` +
     `CI（資料収集時点）: ${ciLabels[target.ci.state]}（${target.ci.checkedAt}）\n\n` +
     "CI 完了後の自動更新は行いません。マージ時には最新の CI 結果も確認してください。\n" +
     "Claude による調査です。実行していない検証や実環境への影響を保証するものではありません。マージは人間が判断してください。";
-  const comments = await github.paginate(github.rest.issues.listComments, {
-    ...repo,
-    issue_number: pr.number,
-    per_page: 100,
-  });
-  const existing = comments.find(
-    (comment) =>
-      comment.user?.login === "github-actions[bot]" &&
-      comment.body?.startsWith(marker),
-  );
+  const existing = await findComment({ github, repo, pr });
   if (existing)
     await github.rest.issues.updateComment({
       ...repo,
