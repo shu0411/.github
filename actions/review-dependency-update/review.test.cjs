@@ -125,7 +125,14 @@ function mockGithub(comments = [], runs = [run()]) {
           { id: 8, name: "ビルド", conclusion: "failure", steps: [] },
         ],
       },
-      pulls: { get: async () => ({ data: pr() }), listFiles: async () => [] },
+      pulls: {
+        get: async () => ({ data: pr() }),
+        listFiles: async (args) => {
+          calls.push(["listFiles", args]);
+          return [];
+        },
+        listCommits: async () => [{ sha, commit: { message: message() } }],
+      },
       git: {
         getTree: async () => ({
           data: {
@@ -174,12 +181,23 @@ function mockGithub(comments = [], runs = [run()]) {
   };
   return { github, calls };
 }
+const updates = (version = "4.17.21") =>
+  "updated-dependencies:\n- dependency-name: lodash\n" +
+  `  dependency-version: ${version}\n  dependency-type: direct:production\n...`;
+const message = (version) =>
+  `Bump lodash from 4.17.20 to ${version}\n\n---\n${updates(version)}\n\n` +
+  "Signed-off-by: dependabot[bot] <support@github.com>";
+const updatesKey = require("node:crypto")
+  .createHash("sha256")
+  .update(updates())
+  .digest("hex");
 const checkedAt = "2026-10-22T00:00:00.000Z";
 const metadata = () =>
   JSON.stringify({
     ...expected(),
     repository: "shu0411/trade-lab",
     ci: { state: "in_progress", checkedAt },
+    updates: updatesKey,
   });
 const report = () =>
   JSON.stringify({ review: "調査結果です。追加修正が必要です。" });
@@ -381,4 +399,89 @@ test("失敗ログを取得できなくても未確認と記録して調査を�
   };
   const data = await collect({ github, repo, pr: pr() });
   assert.equal(data.ci.runs[0].failureLogs[0].unavailable, true);
+});
+const prepareOptions = (github) => {
+  const outputs = {};
+  const core = {
+    setOutput: (key, value) => {
+      outputs[key] = value;
+    },
+    info: () => {},
+  };
+  return { outputs, options: { github, context: context(), core } };
+};
+const reviewed = (key = updatesKey) => [
+  {
+    id: 2,
+    user: { login: "github-actions[bot]" },
+    body: `<!-- dependency-review -->\n<!-- dependency-review-updates: ${key} -->\n調査結果`,
+  },
+];
+test("rebase などで依存の更新内容が調査済みなら資料収集前に中断する", async () => {
+  const { github, calls } = mockGithub(reviewed());
+  const { outputs, options } = prepareOptions(github);
+  await prepare({ ...options, workspace: "/nonexistent" });
+  assert.equal(outputs.ready, undefined);
+  assert.equal(calls.filter(([name]) => name === "listFiles").length, 0);
+});
+for (const [name, mutate] of [
+  [
+    "依存の版が変わった",
+    (github) => {
+      github.rest.pulls.listCommits = async () => [
+        { sha, commit: { message: message("4.17.22") } },
+      ];
+    },
+  ],
+  [
+    "コミットが追加された",
+    (github) => {
+      github.rest.pulls.listCommits = async () => [
+        { sha: base, commit: { message: message() } },
+        { sha, commit: { message: "修正" } },
+      ];
+    },
+  ],
+  [
+    "更新内容がコミットメッセージにない",
+    (github) => {
+      github.rest.pulls.listCommits = async () => [
+        { sha, commit: { message: "Bump lodash" } },
+      ];
+    },
+  ],
+]) {
+  test(`${name}場合は既存コメントがあっても再調査する`, async () => {
+    const { mkdtemp } = require("node:fs/promises");
+    const { github } = mockGithub(reviewed(), []);
+    mutate(github);
+    const { outputs, options } = prepareOptions(github);
+    await prepare({
+      ...options,
+      workspace: await mkdtemp("/tmp/dependency-review-test-"),
+    });
+    assert.equal(outputs.ready, "true");
+  });
+}
+test("他人のコメントに同じ記録があっても調査を中断しない", async () => {
+  const { mkdtemp } = require("node:fs/promises");
+  const comments = reviewed();
+  comments[0].user.login = "someone";
+  const { github } = mockGithub(comments, []);
+  const { outputs, options } = prepareOptions(github);
+  await prepare({
+    ...options,
+    workspace: await mkdtemp("/tmp/dependency-review-test-"),
+  });
+  assert.equal(outputs.ready, "true");
+  assert.equal(JSON.parse(outputs.metadata).updates, updatesKey);
+});
+test("調査した依存の更新内容をコメントに記録する", async () => {
+  const { github, calls } = mockGithub();
+  await publish(pubOptions(github));
+  assert.ok(
+    commentsOnly(calls)[0][1].body.includes(
+      `<!-- dependency-review-updates: ${updatesKey} -->`,
+    ),
+  );
 });
