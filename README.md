@@ -63,7 +63,7 @@ Issue 設計・実装・メンション応答の Composite Action は実行時�
 
 ### Secret の登録
 
-Linux / WSL の Bash と、GitHub CLI（`gh`）、Claude Code（`claude`）が必要。
+GitHub CLI（`gh`）、Claude Code（`claude`）と Bash が必要。
 `gh auth login` で、対象リポジトリの Secrets を更新できる権限を持つアカウントにログインし、
 このリポジトリのルートで実行する。
 
@@ -71,9 +71,10 @@ Linux / WSL の Bash と、GitHub CLI（`gh`）、Claude Code（`claude`）が�
 bash scripts/create-secret.sh OWNER/REPO
 ```
 
-`claude setup-token` で 1 年間有効なトークンを発行し、対象リポジトリの Actions Secret
+`claude setup-token` で 1 年間有効なトークンを発行する。画面に表示されたトークンを貼り付けると、
+そのトークンで Claude に接続できることを確認してから、対象リポジトリの Actions Secret
 `CLAUDE_CODE_OAUTH_TOKEN` に登録する（すでに存在する場合は上書きする）。
-画面のトークンを自動で読み取れなかった場合は、貼り付けを求められる。
+確認で 1 回 Claude を呼び出すため、少量の利用枠を消費する。
 
 ### 設計開始用・実装開始用ラベルの作成
 
