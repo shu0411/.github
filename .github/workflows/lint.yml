@@ -30,5 +30,8 @@ jobs:
       - name: Actionの振る舞いを検証
         run: bash scripts/test-actions.sh
 
+      - name: Secret登録コマンドの振る舞いを検証
+        run: bash scripts/test-create-secret.sh
+
       - name: 依存更新レビューの振る舞いを検証
         run: node actions/review-dependency-update/review.test.cjs
