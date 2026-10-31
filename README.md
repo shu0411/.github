@@ -16,7 +16,7 @@
    Issue上・PR上のメンションでは、明示的に依頼すると、同じリポジトリの別Issueへのコメントや
    新しいIssueの作成も行える
 
-このリポジトリは 1・2（Actions 上での設計）・4・5、およびラベルの作成コマンドを提供する。
+このリポジトリは 1・2（Actions 上での設計）・4・5、およびラベルの作成・Secret の登録コマンドを提供する。
 2 の Skill 本体は [`shu0411/dotfiles`](https://github.com/shu0411/dotfiles) にあり、対象外。
 
 ## 構成
@@ -31,6 +31,7 @@
 | [`workflow-templates/`](workflow-templates/) | 各リポジトリに置く呼び出し側 workflow の雛形 |
 | [`.github/workflows/`](.github/workflows/) | このリポジトリ自身の CI（配布物の構文検証） |
 | [`scripts/create-label.sh`](scripts/create-label.sh) | 指定したリポジトリに設計開始用・実装開始用ラベルを作成するコマンド |
+| [`scripts/create-secret.sh`](scripts/create-secret.sh) | Claude Code のトークンを発行し、指定したリポジトリの Secret に登録するコマンド |
 
 実行環境（checkout・依存関係の準備）はリポジトリごとに異なるため、共通化するのは
 Claude を呼び出す step のみ。環境構築は各リポジトリの workflow に書く。
@@ -47,8 +48,8 @@ Issue 設計・実装・メンション応答の Composite Action は実行時�
 
 ## 導入手順
 
-1. リポジトリの Secrets に `CLAUDE_CODE_OAUTH_TOKEN` を登録する
-   （ローカルで `claude setup-token` を実行して発行。Claude のサブスクリプション契約が前提）
+1. 下記のコマンドでリポジトリの Secrets に `CLAUDE_CODE_OAUTH_TOKEN` を登録する
+   （Claude のサブスクリプション契約が前提）
 2. [Claude GitHub App](https://github.com/apps/claude) をリポジトリにインストールする
 3. 使う workflow の雛形を `.github/workflows/` にコピーする
    （Actions の「New workflow」に表示される場合はそこから選んでもよい）
@@ -59,6 +60,20 @@ Issue 設計・実装・メンション応答の Composite Action は実行時�
    必要に応じて `additional-allowed-tools` / `extra-prompt` を設定する
 5. 自前の `.github/ISSUE_TEMPLATE/` があれば削除する（残っていると共通テンプレートは使われない）
 6. 下記のコマンドで設計開始用・実装開始用ラベルを作成する
+
+### Secret の登録
+
+Linux / WSL の Bash と、GitHub CLI（`gh`）、Claude Code（`claude`）が必要。
+`gh auth login` で、対象リポジトリの Secrets を更新できる権限を持つアカウントにログインし、
+このリポジトリのルートで実行する。
+
+```bash
+bash scripts/create-secret.sh OWNER/REPO
+```
+
+`claude setup-token` で 1 年間有効なトークンを発行し、対象リポジトリの Actions Secret
+`CLAUDE_CODE_OAUTH_TOKEN` に登録する（すでに存在する場合は上書きする）。
+画面のトークンを自動で読み取れなかった場合は、貼り付けを求められる。
 
 ### 設計開始用・実装開始用ラベルの作成
 
@@ -91,6 +106,7 @@ uvx --from actionlint-py actionlint .github/workflows/*.yml workflow-templates/*
 uvx check-jsonschema --builtin-schema vendor.github-actions actions/*/action.yml
 for f in scripts/*.sh actions/*/*.sh; do bash -n "$f"; done
 bash scripts/test-actions.sh
+bash scripts/test-create-secret.sh
 ```
 
 呼び出し側は `@main` を参照しているため、`main` への変更は即座に全リポジトリへ反映される。
