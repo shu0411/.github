@@ -69,7 +69,7 @@ GitHub CLI（`gh`）、Claude Code（`claude`）と Bash が必要。
 
 ```bash
 bash scripts/create-secret.sh OWNER/REPO [OWNER/REPO...]   # 指定したリポジトリに登録する
-bash scripts/create-secret.sh --registered OWNER           # 登録済みのリポジトリをまとめて更新する
+bash scripts/create-secret.sh --owner OWNER              # 登録済みのリポジトリをまとめて更新する
 ```
 
 `claude setup-token` で 1 年間有効なトークンを発行する。画面に表示されたトークンを貼り付けると、
@@ -78,7 +78,7 @@ bash scripts/create-secret.sh --registered OWNER           # 登録済みのリ�
 対象が複数でもトークンの発行は 1 回で、すべてに同じトークンを登録する。
 確認で 1 回 Claude を呼び出すため、少量の利用枠を消費する。
 
-`--registered` は、トークンの有効期限が近づいたときなどに使う。`OWNER` のアーカイブされていない
+`--owner` は、トークンの有効期限が近づいたときなどに使う。`OWNER` のアーカイブされていない
 リポジトリのうち、`CLAUDE_CODE_OAUTH_TOKEN` がすでに登録されているものを対象とし、一覧を表示して
 確認してからトークンを発行する。Secret を確認できないリポジトリは対象から除外し、その旨を表示する。
 一部のリポジトリへの登録に失敗しても残りへの登録は続け、失敗したリポジトリを最後に表示する

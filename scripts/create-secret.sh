@@ -39,7 +39,7 @@ OWNER_PATTERN='^[A-Za-z0-9][A-Za-z0-9-]*$'
 
 usage() {
   echo '使い方: bash scripts/create-secret.sh OWNER/REPO [OWNER/REPO...]' >&2
-  echo '        bash scripts/create-secret.sh --registered OWNER' >&2
+  echo '        bash scripts/create-secret.sh --owner OWNER' >&2
   exit 1
 }
 
@@ -97,7 +97,7 @@ apply_secret() {
 
 # 長期間有効なトークンを無駄に発行しないよう、トークンの発行前に対象リポジトリを確定する
 targets=()
-if [[ "${1:-}" == --registered ]]; then
+if [[ "${1:-}" == --owner ]]; then
   [[ $# -eq 2 && "$2" =~ $OWNER_PATTERN ]] || usage
   found="$(find_registered_repos "$2")"
   [[ -n "$found" ]] && mapfile -t targets <<< "$found"

@@ -121,14 +121,14 @@ check '複数指定のうち1つでも形式が不正なら異常終了する' s
 check '複数指定のうち1つでも形式が不正ならトークンを発行しない' claude_not_called
 
 reset_state
-run_command --registered
-check '--registered にOWNERがなければ異常終了する' status_is 1
-check '--registered にOWNERがなければトークンを発行しない' claude_not_called
+run_command --owner
+check '--owner にOWNERがなければ異常終了する' status_is 1
+check '--owner にOWNERがなければトークンを発行しない' claude_not_called
 
 reset_state
-run_command --registered owner/repo
-check '--registered のOWNERの形式が不正なら異常終了する' status_is 1
-check '--registered のOWNERの形式が不正ならトークンを発行しない' claude_not_called
+run_command --owner owner/repo
+check '--owner のOWNERの形式が不正なら異常終了する' status_is 1
+check '--owner のOWNERの形式が不正ならトークンを発行しない' claude_not_called
 
 # --- リポジトリを指定して登録する ---
 
@@ -186,11 +186,11 @@ check '登録に失敗したリポジトリがあっても残りには登録す�
 check '登録に失敗したリポジトリがあれば異常終了する' status_is 1
 check '登録に失敗したリポジトリを表示する' output_contains '失敗: owner/a'
 
-# --- 登録済みのリポジトリをまとめて更新する（--registered） ---
+# --- 登録済みのリポジトリをまとめて更新する（--owner） ---
 
 reset_state
 GH_REPOS='owner/a owner/b owner/c' GH_REGISTERED='owner/a owner/c' \
-  run_command --registered owner <<< $'y\n'"$TOKEN"
+  run_command --owner owner <<< $'y\n'"$TOKEN"
 check '登録済みのリポジトリすべてに同じトークンを登録する' \
   eval 'secret_is owner/a "$TOKEN" && secret_is owner/c "$TOKEN"'
 check '未登録のリポジトリには登録しない' secret_not_set_to owner/b
@@ -200,38 +200,38 @@ check '更新の前に対象のリポジトリを表示する' \
 
 reset_state
 GH_REPOS='owner/a owner/b' GH_REGISTERED=owner/a GH_SIMILAR=owner/b \
-  run_command --registered owner <<< $'y\n'"$TOKEN"
+  run_command --owner owner <<< $'y\n'"$TOKEN"
 check '名前の似た別のSecretだけがあるリポジトリには登録しない' secret_not_set_to owner/b
 
 reset_state
 GH_REPOS=owner/a GH_ARCHIVED=owner/z GH_REGISTERED='owner/a owner/z' \
-  run_command --registered owner <<< $'y\n'"$TOKEN"
+  run_command --owner owner <<< $'y\n'"$TOKEN"
 check 'アーカイブ済みのリポジトリには登録しない' secret_not_set_to owner/z
 
 reset_state
 GH_REPOS='owner/a owner/b' GH_REGISTERED='owner/a owner/b' GH_SECRET_LIST_FAIL=owner/b \
-  run_command --registered owner <<< $'y\n'"$TOKEN"
+  run_command --owner owner <<< $'y\n'"$TOKEN"
 check 'Secretを確認できないリポジトリを除いて登録する' secret_is owner/a "$TOKEN"
 check 'Secretを確認できないリポジトリには登録しない' secret_not_set_to owner/b
 check 'Secretを確認できないリポジトリを表示する' output_contains owner/b
 
 reset_state
-GH_REPOS='owner/a' GH_REGISTERED=owner/a run_command --registered owner <<< $'n\n'"$TOKEN"
+GH_REPOS='owner/a' GH_REGISTERED=owner/a run_command --owner owner <<< $'n\n'"$TOKEN"
 check '確認で中止すれば異常終了する' status_is_not_zero
 check '確認で中止すればトークンを発行しない' claude_not_called
 check '確認で中止すれば登録しない' secret_not_set
 
 reset_state
-GH_REPOS='owner/a' GH_REGISTERED=owner/a run_command --registered owner <<< ''
+GH_REPOS='owner/a' GH_REGISTERED=owner/a run_command --owner owner <<< ''
 check '確認に回答がなければトークンを発行しない' claude_not_called
 
 reset_state
-GH_REPOS='owner/a owner/b' run_command --registered owner <<< $'y\n'"$TOKEN"
+GH_REPOS='owner/a owner/b' run_command --owner owner <<< $'y\n'"$TOKEN"
 check '登録済みのリポジトリがなければ異常終了する' status_is 1
 check '登録済みのリポジトリがなければトークンを発行しない' claude_not_called
 
 reset_state
-GH_LIST_EXIT=1 run_command --registered owner <<< $'y\n'"$TOKEN"
+GH_LIST_EXIT=1 run_command --owner owner <<< $'y\n'"$TOKEN"
 check 'リポジトリの一覧を取得できなければ異常終了する' status_is_not_zero
 check 'リポジトリの一覧を取得できなければトークンを発行しない' claude_not_called
 
