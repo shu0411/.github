@@ -31,7 +31,7 @@
 | [`workflow-templates/`](workflow-templates/) | 各リポジトリに置く呼び出し側 workflow の雛形 |
 | [`.github/workflows/`](.github/workflows/) | このリポジトリ自身の CI（配布物の構文検証） |
 | [`scripts/create-label.sh`](scripts/create-label.sh) | 指定したリポジトリに設計開始用・実装開始用ラベルを作成するコマンド |
-| [`scripts/create-secret.sh`](scripts/create-secret.sh) | Claude Code のトークンを発行し、指定したリポジトリの Secret に登録するコマンド |
+| [`scripts/create-secret.sh`](scripts/create-secret.sh) | Claude Code のトークンを発行し、指定したリポジトリ、または登録済みの全リポジトリの Secret に登録するコマンド |
 
 実行環境（checkout・依存関係の準備）はリポジトリごとに異なるため、共通化するのは
 Claude を呼び出す step のみ。環境構築は各リポジトリの workflow に書く。
@@ -68,13 +68,21 @@ GitHub CLI（`gh`）、Claude Code（`claude`）と Bash が必要。
 このリポジトリのルートで実行する。
 
 ```bash
-bash scripts/create-secret.sh OWNER/REPO
+bash scripts/create-secret.sh OWNER/REPO [OWNER/REPO...]   # 指定したリポジトリに登録する
+bash scripts/create-secret.sh --registered OWNER           # 登録済みのリポジトリをまとめて更新する
 ```
 
 `claude setup-token` で 1 年間有効なトークンを発行する。画面に表示されたトークンを貼り付けると、
 そのトークンで Claude に接続できることを確認してから、対象リポジトリの Actions Secret
 `CLAUDE_CODE_OAUTH_TOKEN` に登録する（すでに存在する場合は上書きする）。
+対象が複数でもトークンの発行は 1 回で、すべてに同じトークンを登録する。
 確認で 1 回 Claude を呼び出すため、少量の利用枠を消費する。
+
+`--registered` は、トークンの有効期限が近づいたときなどに使う。`OWNER` のアーカイブされていない
+リポジトリのうち、`CLAUDE_CODE_OAUTH_TOKEN` がすでに登録されているものを対象とし、一覧を表示して
+確認してからトークンを発行する。Secret を確認できないリポジトリは対象から除外し、その旨を表示する。
+一部のリポジトリへの登録に失敗しても残りへの登録は続け、失敗したリポジトリを最後に表示する
+（そのリポジトリは `OWNER/REPO` を指定して個別に登録し直す）。
 
 ### 設計開始用・実装開始用ラベルの作成
 
